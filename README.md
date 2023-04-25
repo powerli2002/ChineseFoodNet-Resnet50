@@ -1,5 +1,7 @@
 # README
 
+本项目基于https://github.com/paradiseDust/ChineseFoodNet-EffiNet-L2
+
 ## 本人对项目的补充和改进
 
 1. 实现了使用Resnet50训练ChineseFoodNet，并达到测试集与验证集上top1 70%，top5 90%的精度。
