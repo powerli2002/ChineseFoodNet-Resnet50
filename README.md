@@ -8,10 +8,13 @@
 2. 对原代码进行修补，增加了模型的保存和读取功能。
 3. 添加了计算top1和top5 accuracy的函数，可计算train，test，valid等数据集上的准确率
 
+数据集下载：
+https://pan.baidu.com/s/19lPkSGhMwe5QLLXHNOu-Zw?pwd=7rur
 
 下载训练权重：
 链接：https://pan.baidu.com/s/1m4IvWSB74BATBhwR78ZDtw?pwd=89d3 
 提取码：89d3
+
 放到model_data文件夹下
 
 此权重实现效果：
@@ -23,6 +26,7 @@ Top 1 Accuracy: 68.76%, Top 5 Accuracy: 90.95%
 Top 1 Accuracy: 68.93%, Top 5 Accuracy: 91.09%
 
 
+> 以下为原仓库readme
 
 ## 1 Background
 
