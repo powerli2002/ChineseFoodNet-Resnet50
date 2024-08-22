@@ -1,2 +1,4 @@
 /model_data/
 /ChineseFoodNet/
+**/__pycache__
+.idea

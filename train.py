@@ -1,7 +1,6 @@
 import argparse
 import torch
 import torchvision
-from torch import nn
 
 from torch.utils.data import DataLoader
 from model.wide_res_net import WideResNet
@@ -31,7 +30,7 @@ if __name__ == "__main__":
     parser.add_argument("--momentum", default=0.9, type=float, help="SGD Momentum.")
     parser.add_argument("--threads", default=4, type=int, help="Number of CPU threads for dataloaders.")
     parser.add_argument("--rho", default=2.0, type=int, help="Rho parameter for SAM.")
-    parser.add_argument("--weight_decay", default=0.01, type=float, help="L2 weight decay.")
+    parser.add_argument("--weight_decay", default=0.0005, type=float, help="L2 weight decay.")
     parser.add_argument("--width_factor", default=8, type=int, help="How many times wider compared to normal ResNet.")
     args = parser.parse_args()
 
@@ -47,23 +46,10 @@ if __name__ == "__main__":
                                  num_workers=args.threads)
 
     log = Log(log_each=1)
-    model = WideResNet(args.depth, args.width_factor, args.dropout, in_channels=3, labels=208).to(device)
+    # model = WideResNet(args.depth, args.width_factor, args.dropout, in_channels=3, labels=208).to(device)
 
-    # model = torchvision.models.resnet50(pretrained=True).to(device)
+    model = torchvision.models.resnet50(pretrained=True).to(device)
 
-
-    # 冻结所有参数
-    for param in model.parameters():
-        param.requires_grad = False
-
-    # 替换最后的全连接层，并添加Dropout层
-    model.fc = nn.Sequential(
-        nn.Dropout(0.5),
-        nn.Linear(2048, 208)
-    )
-
-    # for param in model.parameters():
-    #     param.requires_grad = True
 
 
     base_optimizer = torch.optim.SGD
@@ -76,18 +62,13 @@ if __name__ == "__main__":
 
 
     # 加载模型
-    model_dict = model.state_dict()
-    pretrained_dict = checkpoint['model']
-    pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-# 我有自己训练的模型，如何在这个代码中替换预训练模型
-    model_dict.update(pretrained_dict)
-
-    model.load_state_dict(model_dict)
-    model.to(device)
-    # model.load_state_dict(checkpoint['model'])
+    checkpoint = torch.load('model_data/resmodel-32-1.069.pt')
+    model.load_state_dict(checkpoint['model'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     epoch = checkpoint['epoch']
     loss = checkpoint['train_loss']
+
+    print("load success!")
 
     #
     # model_path = 'model_data/model-6-1.2923.pt'
@@ -134,9 +115,8 @@ if __name__ == "__main__":
                     'train_loss': total_loss
                 }
                 total_loss = round(log.epoch_state["loss"] / log.epoch_state["steps"], 4)
-                name = './model_data/retrainresmodel-' + str(epoch) + '-' + str(times) + '-' + str(total_loss) + '.pt'
+                name = './model_data/resmodel-' + str(epoch) + '-' + str(times) + '-' + str(total_loss) + '.pt'
                 torch.save(checkpoint, name)
-
 
         model.eval()
         log.eval(len_dataset=len(dataset_test))
