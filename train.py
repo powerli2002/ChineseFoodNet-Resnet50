@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
 
     # 加载模型
-    checkpoint = torch.load('model_data/resmodel-32-1.069.pt')
+    checkpoint = torch.load('model_data/resmodel-70-1.069.pt')
     model.load_state_dict(checkpoint['model'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     epoch = checkpoint['epoch']
