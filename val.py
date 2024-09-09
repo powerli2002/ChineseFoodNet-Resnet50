@@ -19,10 +19,11 @@ if __name__ == '__main__':
     device = "cpu"
     model = torchvision.models.resnet50(pretrained=False).to(device)
 
-    checkpoint = torch.load('model_data/resmodel-23-4000-0.4873.pt')
+    # checkpoint = torch.load('model_data/resmodel-23-4000-0.4873.pt')
+    checkpoint = torch.load('model_data/resmodel-32-1.069.pt')
     model.load_state_dict(checkpoint['model'])
     model.eval() # 制定model.eval()固定dropout和BN层。
-    img = Image.open('./ChineseFoodNet/release_data/train/000/000000.jpg').convert('RGB')
+    img = Image.open('./ChineseFoodNet/release_data/train/000/000001.jpg').convert('RGB')
     # img = Image.open('dataset/000000.jpg').convert('RGB')
     img = transforms.Compose([
         transforms.CenterCrop(500),

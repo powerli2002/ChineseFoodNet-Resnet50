@@ -16,6 +16,12 @@ import sys;
 sys.path.append("..")
 from sam import SAM
 
+# 是否加载模型
+LOAD_MODEL = 0
+# 模型路径
+model_path = "model_data/resmodel-32-1.069.pt"
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--adaptive", default=True, type=bool, help="True if you want to use the Adaptive SAM.")
@@ -62,19 +68,20 @@ if __name__ == "__main__":
 
 
     # 加载模型
-    checkpoint = torch.load('model_data/resmodel-70-1.069.pt')
-    model.load_state_dict(checkpoint['model'])
-    optimizer.load_state_dict(checkpoint['optimizer'])
-    epoch = checkpoint['epoch']
-    loss = checkpoint['train_loss']
+    if LOAD_MODEL:
+        checkpoint = torch.load(model_path)
+        model.load_state_dict(checkpoint['model'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        epoch = checkpoint['epoch']
+        loss = checkpoint['train_loss']
 
-    print("load success!")
+        print("load success!")
+    else:
+        epoch = 0
+   
 
-    #
-    # model_path = 'model_data/model-6-1.2923.pt'
-    # model.load_state_dict(torch.load(model_path))
-    # # epoch = int(model_path.split('-')[1]) + 1
-    # epoch = 0
+
+
     log = Log(log_each=10, initial_epoch=epoch)
     tmp_flag = 1
     # for epoch in range(args.epochs):
@@ -131,10 +138,7 @@ if __name__ == "__main__":
 
                 correct = torch.argmax(predictions, 1) == targets
                 log(model, loss.cpu(), correct.cpu())
-            # total_loss = log.epoch_state["loss"] / log.epoch_state["steps"]
-            # print(total_loss)
-            # name = './model_data/model-' + str(epoch) + '-' + str(times) + '-' + total_loss + '.pt'
-            # torch.save(model.state_dict(), name)
+
 
         checkpoint = {
             'model': model.state_dict(),
@@ -149,5 +153,4 @@ if __name__ == "__main__":
 
         epoch = epoch + 1
 
-    torch.save(model.state_dict(), 'instance/model_depth8_Corp500_size128.pt')
     log.flush()
