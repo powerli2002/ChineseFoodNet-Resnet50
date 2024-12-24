@@ -6,6 +6,7 @@ from PIL import Image
 from torch import device
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
+from model.resnet_cbam import resnet50_cbam 
 
 from model.wide_res_net import WideResNet
 from utility.initialize import initialize
@@ -35,16 +36,15 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     model = torchvision.models.resnet50(pretrained=True).to(device)
-    # model = WideResNet(8, 8, 0.0, in_channels=3, labels=208).to(device)
-    # model.load_state_dict(torch.load('model_data/model-26-2.1383.pt'))
-    # model.eval()
 
-    checkpoint = torch.load('model_data/resmodel-32-1.069.pt')
+    # model = resnet50_cbam(pretrained = True).to(device)
+
+    checkpoint = torch.load('model_data/resmodel-60-1.1135_best_2024-12-06_09-34.pt')
+
     model.load_state_dict(checkpoint['model'])
 
+    # ====================计算测试集精度===========================
     dataset_test = ChineseFoodNetTestSet()
-    # dataset_test = ChineseFoodNetTrainSet()
-
 
     dataloader_test = DataLoader(dataset=dataset_test, batch_size=args.batch_size, shuffle=True,
                                  num_workers=args.threads)
@@ -70,4 +70,34 @@ if __name__ == '__main__':
 
     top1_acc = 100 * correct_top1 / total
     top5_acc = 100 * correct_top5 / total
-    print(f'Top 1 Accuracy: {top1_acc:.2f}%, Top 5 Accuracy: {top5_acc:.2f}%')
+    print(f'Test Dataset Top 1 Accuracy: {top1_acc:.2f}%, Top 5 Accuracy: {top5_acc:.2f}%')
+
+    # ====================计算验证集精度===========================
+
+    dataset_val = ChineseFoodNetValSet()
+
+    dataloader_val = DataLoader(dataset=dataset_val, batch_size=args.batch_size, shuffle=True,
+                                 num_workers=args.threads)
+
+    sum_correct = 0
+
+    model.eval()
+    correct_top1 = 0
+    correct_top5 = 0
+    total = 0
+
+    with torch.no_grad():
+        for data in dataloader_val:
+            inputs, targets = data
+            inputs, targets = inputs.to(device), targets.to(device)
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs, 1)
+            _, predicted_top5 = outputs.topk(3, dim=1)
+
+            total += targets.size(0)
+            correct_top1 += (predicted == targets).sum().item()
+            correct_top5 += predicted_top5.eq(targets.view(-1, 1).expand_as(predicted_top5)).sum().item()
+
+    top1_acc = 100 * correct_top1 / total
+    top5_acc = 100 * correct_top5 / total
+    print(f'Val dataset Top 1 Accuracy: {top1_acc:.2f}%, Top 5 Accuracy: {top5_acc:.2f}%')

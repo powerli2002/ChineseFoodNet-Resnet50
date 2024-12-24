@@ -5,6 +5,7 @@ from PIL import Image
 from torch import device
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
+from model.resnet_cbam import resnet50_cbam 
 
 from model.wide_res_net import WideResNet
 from utility.initialize import initialize
@@ -33,9 +34,11 @@ if __name__ == '__main__':
     initialize(args, seed=42)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    model = WideResNet(8, 8, 0.0, in_channels=3, labels=208).to(device)
+    # model = WideResNet(8, 8, 0.0, in_channels=3, labels=208).to(device)
     # model.load_state_dict(torch.load('model_data/model-26-2.1383.pt'))
     # model.eval()
+
+    model = resnet50_cbam(pretrained = True).to(device)
 
     checkpoint = torch.load('model_data/resmodel-23-1.085.pt')
     model.load_state_dict(checkpoint['model'])

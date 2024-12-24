@@ -13,30 +13,60 @@ image_size = 600
 
 # mean[0.52011104 0.44459117 0.30962785]
 # std [0.25595631 0.25862494 0.26925405]
+
+# 原版本
+# data_transforms = {
+#     'train': transforms.Compose([
+#         # transforms.RandomResizedCrop(600),
+#         transforms.CenterCrop(500),
+#         transforms.Resize(128),
+#         transforms.RandomHorizontalFlip(),
+#         transforms.ToTensor(),
+#         transforms.Normalize(mean=[0.52011104, 0.44459117, 0.30962785], std=[0.25595631, 0.25862494, 0.26925405]),
+#         Cutout()
+#     ]),
+#     'test': transforms.Compose([
+#         transforms.CenterCrop(500),
+#         transforms.Resize(128),
+#         transforms.ToTensor(),
+#         transforms.Normalize(mean=[0.52011104, 0.44459117, 0.30962785], std=[0.25595631, 0.25862494, 0.26925405])
+#     ]),
+#     'valid': transforms.Compose([
+#         transforms.CenterCrop(500),
+#         transforms.Resize(128),
+#         transforms.RandomHorizontalFlip(),
+#         transforms.ToTensor(),
+#         transforms.Normalize(mean=[0.52011104, 0.44459117, 0.30962785], std=[0.25595631, 0.25862494, 0.26925405])
+#     ])
+# }
+
+# 论文版本
+# 将训练图像的大小调整为 256x256，然后应用水平翻转（概率 0.5）的大小为 224x224 的随机裁剪。
+# 测试过程中，图像大小调整为 256x256，然后我们使用大小为 224x224 的中心裁剪来输入网络。
 data_transforms = {
     'train': transforms.Compose([
-        # transforms.RandomResizedCrop(600),
-        transforms.CenterCrop(500),
-        transforms.Resize(128),
+        transforms.Resize(256),
+        transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.52011104, 0.44459117, 0.30962785], std=[0.25595631, 0.25862494, 0.26925405]),
-        Cutout()
+        # 如果需要 Cutout，确保它来自正确的库并正确导入
+        # Cutout()
     ]),
     'test': transforms.Compose([
-        transforms.CenterCrop(500),
-        transforms.Resize(128),
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.52011104, 0.44459117, 0.30962785], std=[0.25595631, 0.25862494, 0.26925405])
     ]),
     'valid': transforms.Compose([
-        transforms.CenterCrop(500),
-        transforms.Resize(128),
-        transforms.RandomHorizontalFlip(),
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.52011104, 0.44459117, 0.30962785], std=[0.25595631, 0.25862494, 0.26925405])
     ])
 }
+
 
 class ChineseFoodNetTrainSet(Dataset):
     def __init__(self, transform=data_transforms['train'], root='./ChineseFoodNet/release_data/train/'):
