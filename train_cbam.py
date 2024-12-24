@@ -22,7 +22,9 @@ from sam import SAM
 # 是否加载模型
 LOAD_MODEL = 0
 # 模型路径
-model_path = "model_data/resmodel-32-1.069.pt"
+model_path = ""
+
+IF_WANDB = 1
 
 
 if __name__ == "__main__":
@@ -38,13 +40,13 @@ if __name__ == "__main__":
                         help="Base learning rate at the start of the training.")
     parser.add_argument("--momentum", default=0.9, type=float, help="SGD Momentum.")
     parser.add_argument("--threads", default=4, type=int, help="Number of CPU threads for dataloaders.")
-    parser.add_argument("--rho", default=2.0, type=int, help="Rho parameter for SAM.")
+    parser.add_argument("--rho", default=2, type=int, help="Rho parameter for SAM.")
     parser.add_argument("--weight_decay", default=0.0005, type=float, help="L2 weight decay.")
     parser.add_argument("--width_factor", default=8, type=int, help="How many times wider compared to normal ResNet.")
     args = parser.parse_args()
 
-
-    wandb.init(project="Chinesefood_classification", name = datetime.now().strftime('%Y-%m-%d_%H-%M'))
+    if IF_WANDB:
+        wandb.init(project="Chinesefood_classification", name = datetime.now().strftime('%Y-%m-%d_%H-%M'))
 
     config = dict (
         # dataset
@@ -60,10 +62,12 @@ if __name__ == "__main__":
         weight_decay=args.weight_decay
     )
 
-    wandb.config.update(config)
+    if IF_WANDB:
+        wandb.config.update(config)
 
     initialize(args, seed=42)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+    print("running on " + str(device))
     # device = torch.device("cpu")
 
     dataset_train = ChineseFoodNetTrainSet()
@@ -77,12 +81,8 @@ if __name__ == "__main__":
                                  num_workers=args.threads)
 
     log = Log(log_each=1)
-    # model = WideResNet(args.depth, args.width_factor, args.dropout, in_channels=3, labels=208).to(device)
 
-    # model = torchvision.models.resnet50(pretrained=True).to(device)
     model = resnet50_cbam(pretrained = True).to(device)
-
-
 
     base_optimizer = torch.optim.SGD
     optimizer = SAM(model.parameters(), base_optimizer, rho=args.rho, adaptive=args.adaptive, lr=args.learning_rate,
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     log = Log(log_each=10, initial_epoch=epoch)
     tmp_flag = 1
-    # for epoch in range(args.epochs):
+
     while epoch <= args.epochs:
 
         total_loss = 10
@@ -116,6 +116,9 @@ if __name__ == "__main__":
         log.train(len_dataset=len(dataloader_train), flag=tmp_flag)
         tmp_flag = 0
         times = 0
+        total_train_correct = 0
+        total_train_samples = 0
+        total_train_loss = 0
         for batch in dataloader_train:
             times = times + 1
             inputs, targets = (b.to(device) for b in batch)
@@ -125,6 +128,9 @@ if __name__ == "__main__":
             predictions = model(inputs)
             loss = smooth_crossentropy(predictions, targets, smoothing=args.label_smoothing)
             loss.mean().backward()
+
+            batch_loss = loss.sum().item()
+            total_train_loss += batch_loss
             total_loss = loss
             optimizer.first_step(zero_grad=True)
 
@@ -138,16 +144,43 @@ if __name__ == "__main__":
                 log(model, loss.cpu(), correct.cpu(), scheduler.lr())
                 scheduler(epoch)
 
-                if wandb.run is not None:
-                    wandb.log({
-                        f"Train Accuracy": correct.cpu(),
-                        f"Train Train Loss": loss.cpu()
-                    })
+                # 显式计算准确率，以便记录
+                batch_correct = correct.sum().item()
+                steps = targets.size(0)
+                total_train_correct += batch_correct
+                total_train_samples += steps
 
+                if times % 5 == 0:
+                    if wandb.run is not None:
+                        wandb.log({
+                            "Batch Train Accuracy": batch_correct / steps,
+                            "Batch Train Loss": batch_loss / steps
+                        })
+
+                
+
+        train_accuracy = total_train_correct / total_train_samples
+        train_loss = total_train_loss / total_train_samples
+        
+
+        if wandb.run is not None:
+            # print("train info upload!")
+            wandb.log({
+                "Epoch": epoch,
+                "Train Accuracy": train_accuracy,
+                "Train Loss": train_loss
+            },commit=False)
+        else:
+            print("wandb not running!")
+
+        total_val_loss = 0.0
+        total_val_correct = 0
+        total_val_samples = 0
 
         model.eval()
         log.eval(len_dataset=len(dataset_test))
 
+    
         with torch.no_grad():
             for batch in dataloader_val:
                 inputs, targets = (b.to(device) for b in batch)
@@ -159,21 +192,32 @@ if __name__ == "__main__":
                 correct = torch.argmax(predictions, 1) == targets
                 log(model, loss.cpu(), correct.cpu())
 
-                if wandb.run is not None:
-                    wandb.log({
-                        f"Val Accuracy": correct.cpu(),
-                        f"Val Val Loss": loss.cpu()
-                    })
+                total_val_loss += loss.sum().item()
+                total_val_correct += correct.sum().item()
+                total_val_samples += targets.size(0)
+
+
+        val_accuracy = total_val_correct / total_val_samples  # 计算平均准确率
+        val_loss = total_val_loss / total_val_samples
+
+        if wandb.run is not None:
+            wandb.log({
+                "Val Accuracy": val_accuracy,
+                "Val Loss": val_loss
+            },commit=True)
+
+        else:
+            print("wandb not running!")
 
         
-        if epoch % 3 == 0:
+        if epoch % 5 == 0:
             checkpoint = {
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
                 'epoch': epoch,
                 'train_loss': total_loss
             }
-            # torch.save(checkpoint, 'model_checkpoint.pt')
+
             total_loss = round(log.epoch_state["loss"] / log.epoch_state["steps"], 4)
             name = './model_data/resmodel-' + str(epoch) + '-' + str(total_loss) + '.pt'
             torch.save(checkpoint, name)
@@ -181,3 +225,8 @@ if __name__ == "__main__":
         epoch = epoch + 1
 
     log.flush()
+    wandb.finish()
+
+
+# 数据增强
+
